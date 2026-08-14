@@ -206,11 +206,17 @@ h1,h2,h3{font-family:'Kanit',sans-serif; margin:0 0 6px;}
 .token{
   position:absolute; width:7.6%; aspect-ratio:1/1;
   transform:translate(-50%,-60%);
-  transition:left 300ms ease-in-out, top 300ms ease-in-out;
+  transition:left 300ms ease-in-out, top 300ms ease-in-out, opacity 200ms ease;
   z-index:6; filter:drop-shadow(0 3px 4px rgba(0,0,0,0.6));
   pointer-events:none;
+  opacity:0; /* hidden until the first dice roll — see waiting-avatar in the HUD */
 }
 .token svg{width:100%;height:100%;display:block; shape-rendering:crispEdges;}
+.waiting-avatar{
+  width:26px; height:26px; flex:none;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,0.5));
+}
+.waiting-avatar svg{width:100%;height:100%;display:block; shape-rendering:crispEdges;}
 
 .game-bottom{
   flex-shrink:0; padding:12px 2px calc(14px + env(safe-area-inset-bottom));
@@ -369,6 +375,7 @@ h1,h2,h3{font-family:'Kanit',sans-serif; margin:0 0 6px;}
     <div class="top-chips">
       <div class="round-chip" id="round-chip">รอบที่ 0/10</div>
       <div class="timer-chip" id="timer-chip">⏱️ 90s</div>
+      <div class="waiting-avatar" id="waiting-avatar"></div>
       <span class="score-chip" id="hud-score">ถูก 0/0</span>
       <button type="button" class="help-btn" id="help-btn" aria-label="วิธีเล่น">❓</button>
     </div>
@@ -944,7 +951,9 @@ document.getElementById('reg-submit').addEventListener('click', ()=>{
   switchScreen('game');
   renderBoard();
   updateHud();
-  startSessionTimer();
+  updateTimerChip(); // show the full time, but don't start counting down yet — that begins on the first roll
+  $('#waiting-avatar').innerHTML = TOKEN_SVG;
+  $('#waiting-avatar').style.display = '';
 });
 
 /* ============================================================
@@ -992,6 +1001,13 @@ async function rollDice(){
   busy = true;
   const btn = $('#roll-btn');
   btn.disabled = true;
+
+  const isFirstRoll = (rollsUsed === 0);
+  if (isFirstRoll){
+    startSessionTimer(); // the countdown only begins once the player actually starts playing
+    $('#player-token').style.opacity = '1';
+    $('#waiting-avatar').style.display = 'none';
+  }
 
   rollsUsed += 1;
   const value = 1 + Math.floor(Math.random()*6);
