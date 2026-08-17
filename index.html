@@ -521,6 +521,10 @@ const FAQ_BANK = [
   { q:"หากต้องการจะสอบสัมภาษณ์ จะต้องมีคุณสมบัติอย่างไรบ้าง", opts:["เป็นสมาชิกสามัญ และผ่านการสอบข้อเขียน 1 วิชา","เป็นสมาชิกสมทบ และผ่านการสอบข้อเขียน 2 วิชา"], correct:1 },
   { q:"เมื่อประกาศผลสอบสัมภาษณ์แล้ว หากต้องการขึ้นทะเบียนรับใบอนุญาต ต้องทำอย่างไร", opts:["ยื่นเอกสารขอขึ้นทะเบียนรับใบอนุญาตมาทางไปรษณีย์","ยื่นเอกสารขอขึ้นทะเบียนรับใบอนุญาตผ่านทางระบบ One Platform"], correct:1 },
   { q:"ผู้ที่ผ่านการประเมินหน่วยคะแนนการศึกษาต่อเนื่องแล้ว แต่ใบอนุญาตหมดอายุ จะต้องยื่นขอสอบสัมภาษณ์ด้วยหรือไม่", opts:["ต้องยื่นสอบ","ไม่จำเป็นต้องสอบ"], correct:0 },
+  { q:"ค่าสมัครสมาชิกสามัญแรกเข้า 1 ปี ทั้งหมดเป็นเงินเท่าไร", opts:["200 บาท","300 บาท"], correct:1 },
+  { q:"หากต่ออายุสมาชิกสามัญ 1 ปี มีค่าธรรมเนียมรายปีละเท่าไร", opts:["200 บาท","100 บาท"], correct:0 },
+  { q:"หากอายุสมาชิกหมดอายุเป็นเวลา 5 ปีแล้ว จะต้องสมัครสมาชิกใหม่หรือไม่", opts:["ต้องสมัครสมาชิกใหม่","ไม่ต้องสมัครสมาชิกใหม่"], correct:0 },
+  { q:"หากใบประกอบวิชาชีพสังคมสงเคราะห์รับอนุญาตหมดอายุ ควรทำอย่างไร", opts:["เก็บหน่วยคะแนน","ไม่ต้องทำอะไรเป็นการต่ออายุอัตโนมัติ"], correct:0 },
 ];
 
 /* ============================================================
@@ -535,6 +539,7 @@ let questionTimerHandle = null;
 let gameOver = false;
 let selectedMemberStatus = null;
 let lastQuestionIndex = -1;
+let usedQuestionIndices = new Set(); // questions already asked this game — never repeat within one game
 let pendingQuizResolve = null;
 let bonusTiles = new Set(); // tile numbers that give +time instead of a question, chosen fresh each game
 
@@ -978,6 +983,8 @@ document.getElementById('reg-submit').addEventListener('click', ()=>{
   secondsLeft = SESSION_SECONDS;
   gameOver = false;
   bonusTiles = pickBonusTiles();
+  usedQuestionIndices = new Set();
+  lastQuestionIndex = -1;
   cubeRX = 0; cubeRY = 0;
   $('#dice-cube').style.transition = 'none';
   $('#dice-cube').style.transform = 'rotateX(0deg) rotateY(0deg)';
@@ -1105,11 +1112,20 @@ const QUESTION_SECONDS = 15;
 function showQuiz(){
   return new Promise(resolve=>{
     pendingQuizResolve = resolve;
-    let qIdx = Math.floor(Math.random()*FAQ_BANK.length);
-    if (FAQ_BANK.length > 1){
-      while (qIdx === lastQuestionIndex) qIdx = Math.floor(Math.random()*FAQ_BANK.length);
+    let qIdx;
+    const unused = FAQ_BANK.map((_, i) => i).filter(i => !usedQuestionIndices.has(i));
+    if (unused.length > 0){
+      qIdx = unused[Math.floor(Math.random() * unused.length)];
+    } else {
+      // exhausted the whole bank this game (only possible if FAQ_BANK is very
+      // small) — fall back to just avoiding an immediate repeat of the last one
+      qIdx = Math.floor(Math.random()*FAQ_BANK.length);
+      if (FAQ_BANK.length > 1){
+        while (qIdx === lastQuestionIndex) qIdx = Math.floor(Math.random()*FAQ_BANK.length);
+      }
     }
     lastQuestionIndex = qIdx;
+    usedQuestionIndices.add(qIdx);
     const item = FAQ_BANK[qIdx];
     $('#quiz-question').textContent = item.q;
     const optsEl = $('#quiz-options');
